@@ -3,8 +3,8 @@ import publicationRoutes from './routes/publicationRoutes.js';
 
 const app = express();
 
-app.use(express.json()); // for parsing JSON
-app.use(express.urlencoded({ extended: true })); // for parsing form-data text fields
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/publications', publicationRoutes);
 app.use('/uploads', express.static('uploads'));
