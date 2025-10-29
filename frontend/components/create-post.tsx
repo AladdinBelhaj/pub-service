@@ -42,13 +42,14 @@ export function CreatePost({ user, onCreate }: CreatePostProps) {
       return;
     }
     // Upload to backend endpoint using multipart/form-data
-    const backendUrl = 'http://localhost:3000/publications';
-    const form = new FormData();
-    form.append('text', text.trim());
-    if (file) form.append('mediaFiles', file);
+  const BACKEND_BASE = 'http://localhost:3000'
+  const backendUrl = `${BACKEND_BASE}/publications`;
+  const form = new FormData();
+  form.append('text', text.trim());
+  if (file) form.append('mediaFiles', file);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', backendUrl);
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', backendUrl);
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) {
         setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
@@ -61,11 +62,13 @@ export function CreatePost({ user, onCreate }: CreatePostProps) {
           const data = JSON.parse(xhr.responseText);
           // backend returns { text, mediaUrls }
           const mediaUrl = data.mediaUrls && data.mediaUrls.length ? data.mediaUrls[0] : null;
+          // ensure media URL is absolute so the browser loads it from the backend
+          const mediaFull = mediaUrl ? `${BACKEND_BASE}${mediaUrl}` : null;
           const post: Post = {
             id: Date.now().toString(),
             user,
             text: data.text || text.trim(),
-            media: mediaUrl ? { url: mediaUrl, type: file ? file.type : 'image/*' } : null,
+            media: mediaFull ? { url: mediaFull, type: file ? file.type : 'image/*' } : null,
             timestamp: new Date().toISOString(),
             reactions: { like: 0, love: 0, haha: 0 },
             comments: [],
