@@ -1,10 +1,16 @@
 import express from 'express';
+import cors from 'cors';
 import publicationRoutes from './routes/publicationRoutes.js';
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(cors({
+  origin: '*',
+}));
+
 
 app.use('/publications', publicationRoutes);
 app.use('/uploads', express.static('uploads'));

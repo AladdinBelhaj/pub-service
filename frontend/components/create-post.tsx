@@ -16,6 +16,7 @@ export function CreatePost({ user, onCreate }: CreatePostProps) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -40,26 +41,56 @@ export function CreatePost({ user, onCreate }: CreatePostProps) {
       setError('Please add text or attach a media file.');
       return;
     }
+    // Upload to backend endpoint using multipart/form-data
+    const backendUrl = 'http://localhost:3000/publications';
+    const form = new FormData();
+    form.append('text', text.trim());
+    if (file) form.append('mediaFiles', file);
 
-    const post: Post = {
-      id: Date.now().toString(),
-      user,
-      text: text.trim(),
-      media: file ? { url: preview!, type: file.type } : null,
-      timestamp: new Date().toISOString(),
-      reactions: { like: 0, love: 0, haha: 0 },
-      comments: [],
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', backendUrl);
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+      }
     };
+    xhr.onload = () => {
+      setUploadProgress(null);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          // backend returns { text, mediaUrls }
+          const mediaUrl = data.mediaUrls && data.mediaUrls.length ? data.mediaUrls[0] : null;
+          const post: Post = {
+            id: Date.now().toString(),
+            user,
+            text: data.text || text.trim(),
+            media: mediaUrl ? { url: mediaUrl, type: file ? file.type : 'image/*' } : null,
+            timestamp: new Date().toISOString(),
+            reactions: { like: 0, love: 0, haha: 0 },
+            comments: [],
+          };
+          onCreate(post);
+        } catch (err) {
+          setError('Upload succeeded but response could not be parsed.');
+        }
+      } else {
+        setError('Upload failed.');
+      }
 
-    onCreate(post);
-    
-    if (preview) {
-      URL.revokeObjectURL(preview);
-    }
-    setText('');
-    setFile(null);
-    setPreview(null);
-    setError('');
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+      setText('');
+      setFile(null);
+      setPreview(null);
+      setError('');
+    };
+    xhr.onerror = () => {
+      setUploadProgress(null);
+      setError('Upload failed (network error).');
+    };
+    xhr.send(form);
   }
 
   const initials = user.name
@@ -124,6 +155,10 @@ export function CreatePost({ user, onCreate }: CreatePostProps) {
               Publish
             </Button>
           </div>
+
+          {uploadProgress !== null && (
+            <div className="mt-2 text-sm">Uploading... {uploadProgress}%</div>
+          )}
 
           {error && <p className="text-sm text-destructive mt-2">{error}</p>}
         </form>
